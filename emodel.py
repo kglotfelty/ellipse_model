@@ -7,7 +7,7 @@ from pycrates import read_file
 
 
 
-infile = "ellipses.fits"
+infile = "ellipses.fits[#row=1:3]"
 image_file = "img.fits"
 outfile = "model.fits"
 normalization = 1.0
@@ -67,8 +67,6 @@ def region_limits( e, xmax, ymax ):
     retval = retval.astype("i4") + np.array( [[0,0],[1,1]]) # +1 to upper limit
     retval = np.clip(retval, 1, (xmax,ymax))
     return retval
-    
-    
 
 
 def convert_coordinates( img ):
@@ -85,6 +83,16 @@ def convert_coordinates( img ):
     return coords
 
 
+def union_previous_shapes( edata, N ):
+
+    shapes_already_counted = CXCRegion()
+    for e in edata[0:N]:
+        shapes_already_counted = shapes_already_counted+e[1]
+    
+    return(shapes_already_counted)
+    
+
+
     
 edata = load_ellipses( infile )
 img,sky = load_image(image_file)
@@ -94,41 +102,21 @@ coords = convert_coordinates(img)
 
 ovals = img.get_image().values
 
-"""
-# First ellipse
-
-f0 = edata[0][0] # fraction in 1st ellipse
-e0 = edata[0][1] # 1st ellipse
-
-erange = region_limits( e0, xlen, ylen )
-inside = []
-for _y in range( erange[0][1], erange[1][1]+1):
-    for _x in range(erange[0][0], erange[1][0]+1):
-        pos = coords[(_x,_y)]
-        if e0.is_inside( pos[0],pos[1]):
-            inside.append( (_x-1,_y-1), )
-    
-f0 = f0 / len(inside)
-
-for _i,_j in inside:
-    ovals[_j,_i] = ovals[_j,_i]+f0
-    
-img.write("000.fits",clobber=True)
-"""
-
 
 for N in range(0,len(edata)):
 
-    fN = edata[N][0] # fraction in 1st ellipse
-    eN = edata[N][1] 
+    fN = edata[N][0] # fraction in 1st region
+    eN = edata[N][1] # the region itself
 
 
-    shapes_already_counts = CXCRegion()
-    for e in edata[0:N]:
-        shapes_already_counts = shapes_already_counts+e[1]
+    shapes_already_counted = union_previous_shapes(edata,N)
 
-    region_already_counted = eN * shapes_already_counts
+    # Intersect current shape with existing ones.
+    region_already_counted = eN * shapes_already_counted
 
+    # Determine sum of fraction already included 
+    # in the intersection of the current ellipse and 
+    # the previous ellipses.  
     erange = region_limits(region_already_counted,xlen, ylen)
     current_frac = 0.0
     for _y in range( erange[0][1], erange[1][1]+1):
@@ -137,28 +125,52 @@ for N in range(0,len(edata)):
             if region_already_counted.is_inside( pos[0],pos[1]):
                 current_frac = current_frac + ovals[_y-1,_x-1]
 
+    # The delta is the fraction 
     delta_fN = fN - current_frac
+    if delta_fN < 0:
+        raise ValueError("Somethings wrong, no negative flux please")
 
-    # Now distribute in annulus 
-    if 0 == len(shapes_already_counts.shapes):
+    # Now we compute the elliptical "annulus" to fill in.
+    # We have to treat the 1st shape special.
+    if 0 == len(shapes_already_counted.shapes):
         region_not_already_counted = eN
     else:
-        region_not_already_counted = eN - shapes_already_counts
+        region_not_already_counted = eN - shapes_already_counted
 
+    
+    # Now we count how many pixels in the current image are 
+    # in the annulus.  We could use the .area() method but 
+    # this gets us what we need.
+    #
     erange = region_limits(region_not_already_counted,xlen,ylen)
     inside = []
+    weight = []
     for _y in range( erange[0][1], erange[1][1]+1):
         for _x in range(erange[0][0], erange[1][0]+1):
             pos = coords[(_x,_y)]
             if region_not_already_counted.is_inside( pos[0],pos[1]):
                 inside.append (  (_x-1,_y-1), )
-        
-    val = delta_fN / len(inside)
+                weight.append( 1.0 )
 
-    for _i,_j in inside:
-        ovals[_j,_i] = ovals[_j,_i]+val
+    #
+    # Due to pixel size, there may not be any pixels so we check
+    # otherwise, we evenly distibuted the delta-flux into that many
+    # pixels.
+    #
+    if len(inside)>0:
+        val = delta_fN / sum(weight)
+
+        # Save the values.
+        for _ij,_w in zip(inside,weight):
+            _i,_j = _ij
+            ovals[_j,_i] = ovals[_j,_i]+(val*_w)
         
-    img.write("{:03d}.fits".format(N),clobber=True)
+    # DEBUG: img.write("{:03d}.fits".format(N),clobber=True)
+
+
+img.get_image().values = ovals * normalization
+
+img.write(outfile, clobber=clobber)
 
 
     
