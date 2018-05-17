@@ -279,8 +279,6 @@ class EllipseModel(object):
         # in the annulus.  We could use the .area() method but 
         # this gets us what we need.
         #
-
-        
         self.weight_class.set_region( curshape )
 
         extent = reg.extent()
@@ -356,6 +354,17 @@ class EllipseModel(object):
         self.img.write( self.img.ovals, outfile, normalization, clobber)
         
 
+def map_weights( weight_name ):    
+    weight_class = { 'flat' : FlatWeight,
+                     'linear' : LinearWeight,
+                     'square' : SquareWeight,
+                     'gaussian' : ExpWeight
+                     }
+    wn = weight_name.lower()
+    if wn not in weight_class:
+        raise ValueError("Unknown weight name")
+    return weight_class[wn]
+
 
 def main():
 
@@ -363,9 +372,12 @@ def main():
     image_file = "img.fits"
     outfile = "model.fits"
     normalization = 1.0
+    weight = 'gaussian'
+    bias = 0.1
     clobber = True
-
-    my_ellipse = EllipseModel( infile, ExpWeight(0.5) )
+    
+    my_weight = map_weights(weight)
+    my_ellipse = EllipseModel( infile, my_weight(bias) )
     my_ellipse.load_image( image_file )
     my_ellipse.doit()
     my_ellipse.write( outfile, normalization, clobber )
