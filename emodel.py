@@ -109,24 +109,24 @@ class ModelImage( object ):
 
 class Weights(object):
     
-    def __init__(self, reg):
+    def __init__(self, bias=None):
+        self.bias = bias
+        pass
+    
+    def set_region(self, reg):
         self.reg = reg
         self.decompose_region()
 
-    def decompose_region( self ):
-        
+    def decompose_region( self ):        
         reg = self.reg.shapes[0]
         self.x0 = reg.xpoints[0]
         self.y0 = reg.ypoints[0]
         self.r0 = reg.radii[0]
         self.r1 = reg.radii[1]
-        self.ratio = self.r1/self.r0
-
         self.ang = reg.angles[0]
         self.ang *= 1.0        
         self.cos_ang = np.cos(np.deg2rad(self.ang))
         self.sin_ang = np.sin(np.deg2rad(self.ang))
-
     
     def calc_weight( self, x,y):
         raise NotImplementedError("Implement in derived class")
@@ -149,51 +149,66 @@ class Weights(object):
         return dist_from_edge
 
         
-        
-        
-        
 class FlatWeight( Weights ):
     
-    def __init__(self, reg):
-        super( FlatWeight, self).__init__(reg)
+    def __init__(self, bias=None):
+        super( FlatWeight, self).__init__(bias)
         
     def calc_weight( self, x, y ):
         return 1.0
 
 
 class LinearWeight(Weights):
-    def __init__(self, reg):
-        super( LinearWeight, self).__init__(reg)
+    def __init__(self,bias=2):
+        super( LinearWeight, self).__init__(bias)
         
     def calc_weight( self, x, y ):
         d = self.calc_distance( x, y )
         
         # Humm, we need a bias for the weights
-        d=d+2         
+        d=d+self.bias
         return d
 
     
 class SquareWeight(Weights):
-    def __init__(self, reg):
-        super( SquareWeight, self).__init__(reg)
+    def __init__(self,bias=1):
+        super( SquareWeight, self).__init__(bias)
         
     def calc_weight( self, x, y ):
         d = self.calc_distance( x, y )
         
-        d = (d*d)+2
+        d = (d*d)+self.bias
         return d
+
+    
+class ExpWeight(Weights):
+    def __init__(self,bias=0.5):
+        super( ExpWeight, self).__init__(bias)
+        
+    def calc_weight( self, x, y ):
+        d = self.calc_distance( x, y )
+        d=1-d
+        d=d*d
+        d=d*0.5
+        retval = np.exp( -(d) )
+        retval = retval+self.bias
+        return retval
 
 
 
 
 class EllipseModel(object):
     
-    def __init__(self, infile):
+    def __init__(self, infile, weight_class):
         self.infile = infile
         self.ellipse_list = None
         self.img = None
         
         self.load_ellipses()
+
+        if not isinstance( weight_class, Weights):
+            raise ValueError("Expecting a weight class")
+        self.weight_class = weight_class
 
 
     def load_ellipses( self ):
@@ -259,12 +274,14 @@ class EllipseModel(object):
         return current_frac
 
 
-    def calc_area_and_weights( self, reg, curshape, weight_class=FlatWeight ):
+    def calc_area_and_weights( self, reg, curshape ):
         # Now we count how many pixels in the current image are 
         # in the annulus.  We could use the .area() method but 
         # this gets us what we need.
         #
-        weight_calc = weight_class( curshape )
+
+        
+        self.weight_class.set_region( curshape )
 
         extent = reg.extent()
         erange = self.img.region_logical_limits( extent )
@@ -275,7 +292,7 @@ class EllipseModel(object):
                 pos = self.img.coords[(_x,_y)]
                 if reg.is_inside( pos[0],pos[1]):
                     inside.append (  (_x-1,_y-1), )
-                    weight.append( weight_calc.calc_weight(pos[0],pos[1] ))
+                    weight.append( self.weight_class.calc_weight(pos[0],pos[1] ))
 
         return inside,weight
 
@@ -348,7 +365,7 @@ def main():
     normalization = 1.0
     clobber = True
 
-    my_ellipse = EllipseModel( infile )
+    my_ellipse = EllipseModel( infile, ExpWeight(0.5) )
     my_ellipse.load_image( image_file )
     my_ellipse.doit()
     my_ellipse.write( outfile, normalization, clobber )
