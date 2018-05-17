@@ -107,6 +107,84 @@ class ModelImage( object ):
 
 
 
+class Weights(object):
+    
+    def __init__(self, reg):
+        self.reg = reg
+        self.decompose_region()
+
+    def decompose_region( self ):
+        
+        reg = self.reg.shapes[0]
+        self.x0 = reg.xpoints[0]
+        self.y0 = reg.ypoints[0]
+        self.r0 = reg.radii[0]
+        self.r1 = reg.radii[1]
+        self.ratio = self.r1/self.r0
+
+        self.ang = reg.angles[0]
+        self.ang *= 1.0        
+        self.cos_ang = np.cos(np.deg2rad(self.ang))
+        self.sin_ang = np.sin(np.deg2rad(self.ang))
+
+    
+    def calc_weight( self, x,y):
+        raise NotImplementedError("Implement in derived class")
+
+    def calc_distance( self, x,y):
+        
+        xh = x-self.x0
+        yh = y-self.y0
+        xr =      xh*self.cos_ang + yh*self.sin_ang
+        yr = -1.0*xh*self.sin_ang + yh*self.cos_ang
+        xs = xr/self.r0
+        ys = yr/self.r1
+
+        dist = np.hypot( ys, xs)
+        assert dist <= 1.0, "Whoops, wrong scale"
+
+        dist_from_edge = 1.0 - dist        
+        assert dist_from_edge >= 0, "Whoops"
+        
+        return dist_from_edge
+
+        
+        
+        
+        
+class FlatWeight( Weights ):
+    
+    def __init__(self, reg):
+        super( FlatWeight, self).__init__(reg)
+        
+    def calc_weight( self, x, y ):
+        return 1.0
+
+
+class LinearWeight(Weights):
+    def __init__(self, reg):
+        super( LinearWeight, self).__init__(reg)
+        
+    def calc_weight( self, x, y ):
+        d = self.calc_distance( x, y )
+        
+        # Humm, we need a bias for the weights
+        d=d+2         
+        return d
+
+    
+class SquareWeight(Weights):
+    def __init__(self, reg):
+        super( SquareWeight, self).__init__(reg)
+        
+    def calc_weight( self, x, y ):
+        d = self.calc_distance( x, y )
+        
+        d = (d*d)+2
+        return d
+
+
+
 
 class EllipseModel(object):
     
@@ -181,11 +259,13 @@ class EllipseModel(object):
         return current_frac
 
 
-    def calc_area_and_weights( self, reg ):
+    def calc_area_and_weights( self, reg, curshape, weight_class=FlatWeight ):
         # Now we count how many pixels in the current image are 
         # in the annulus.  We could use the .area() method but 
         # this gets us what we need.
         #
+        weight_calc = weight_class( curshape )
+
         extent = reg.extent()
         erange = self.img.region_logical_limits( extent )
         inside = []
@@ -195,7 +275,7 @@ class EllipseModel(object):
                 pos = self.img.coords[(_x,_y)]
                 if reg.is_inside( pos[0],pos[1]):
                     inside.append (  (_x-1,_y-1), )
-                    weight.append( 1.0 )
+                    weight.append( weight_calc.calc_weight(pos[0],pos[1] ))
 
         return inside,weight
 
@@ -240,7 +320,7 @@ class EllipseModel(object):
         else:
             region_not_already_counted = eN - shapes_already_counted
 
-        inside, weight = self.calc_area_and_weights(region_not_already_counted)
+        inside, weight = self.calc_area_and_weights(region_not_already_counted, eN)
 
         self._add_to_output( delta_fN, inside, weight )
 
