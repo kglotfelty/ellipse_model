@@ -111,7 +111,6 @@ class Weights(object):
     
     def __init__(self, bias=None):
         self.bias = bias
-        pass
     
     def set_region(self, reg):
         self.reg = reg
@@ -180,6 +179,32 @@ class SquareWeight(Weights):
         d = (d*d)+self.bias
         return d
 
+class ISquareWeight(Weights):
+    def __init__(self,bias=1):
+        super( ISquareWeight, self).__init__(bias)
+        
+    def calc_weight( self, x, y ):
+        d = self.calc_distance( x, y )
+        d=1-d
+        d=1-d*d
+        d=d+self.bias
+        
+        return d
+
+
+
+
+class SquareRootWeight(Weights):
+    def __init__(self,bias=1):
+        super( SquareRootWeight, self).__init__(bias)
+        
+    def calc_weight( self, x, y ):
+        d = self.calc_distance( x, y )
+        d= np.sqrt(d)
+        d = d+self.bias
+        return d
+
+
     
 class ExpWeight(Weights):
     def __init__(self,bias=0.5):
@@ -190,6 +215,8 @@ class ExpWeight(Weights):
         d=1-d
         d=d*d
         d=d*0.5
+        #d=d*0.5
+        #d=d*5.0
         retval = np.exp( -(d) )
         retval = retval+self.bias
         return retval
@@ -358,7 +385,9 @@ def map_weights( weight_name ):
     weight_class = { 'flat' : FlatWeight,
                      'linear' : LinearWeight,
                      'square' : SquareWeight,
-                     'gaussian' : ExpWeight
+                     'gaussian' : ExpWeight,
+                     'sqrt' : SquareRootWeight,
+                     'hemi' : ISquareWeight
                      }
     wn = weight_name.lower()
     if wn not in weight_class:
@@ -369,11 +398,12 @@ def map_weights( weight_name ):
 def main():
 
     infile = "ellipses.fits"
+    ###infile="aaa"
     image_file = "img.fits"
     outfile = "model.fits"
     normalization = 1.0
-    weight = 'gaussian'
-    bias = 0.1
+    weight = 'square'
+    bias = 0.5
     clobber = True
     
     my_weight = map_weights(weight)
