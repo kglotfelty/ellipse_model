@@ -8,6 +8,7 @@ from pycrates import read_file
 
 
 infile = "ellipses.fits[#row=1:3]"
+infile="k.fits"
 image_file = "img.fits"
 outfile = "model.fits"
 normalization = 1.0
@@ -114,6 +115,14 @@ for N in range(0,len(edata)):
     # Intersect current shape with existing ones.
     region_already_counted = eN * shapes_already_counted
 
+    # Now we compute the elliptical "annulus" to fill in.
+    # We have to treat the 1st shape special.
+    if 0 == len(shapes_already_counted.shapes):
+        region_not_already_counted = eN
+    else:
+        region_not_already_counted = eN - shapes_already_counted
+
+
     # Determine sum of fraction already included 
     # in the intersection of the current ellipse and 
     # the previous ellipses.  
@@ -130,12 +139,6 @@ for N in range(0,len(edata)):
     if delta_fN < 0:
         raise ValueError("Somethings wrong, no negative flux please")
 
-    # Now we compute the elliptical "annulus" to fill in.
-    # We have to treat the 1st shape special.
-    if 0 == len(shapes_already_counted.shapes):
-        region_not_already_counted = eN
-    else:
-        region_not_already_counted = eN - shapes_already_counted
 
     
     # Now we count how many pixels in the current image are 
