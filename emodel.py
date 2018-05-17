@@ -7,8 +7,8 @@ from pycrates import read_file
 
 
 
-infile = "ellipses.fits[#row=1:3]"
-infile="k.fits"
+infile = "ellipses.fits"
+#infile="k.fits"
 image_file = "img.fits"
 outfile = "model.fits"
 normalization = 1.0
