@@ -49,6 +49,11 @@ from pycrates import read_file
 
 class ModelImage( object ):
     """
+    The model image
+    
+    This class contains the data and methods used to read in the
+    input image, get the WCS for the sky (TBR) axis and 
+    write the output.    
     
     """
     def __init__( self, infile ):
@@ -85,7 +90,12 @@ class ModelImage( object ):
 
 
     def get_sky_axis(self):
-        """Determine sky coord axis name"""
+        """Determine sky coord axis name
+        
+        This is pretty restrictive right now, but I don't have a better
+        way to do it (other than ask user).  This breaks for the
+        2 1-D axis names case (ie two independent axes, eg time &pha).        
+        """
         
         _a = [x.lower() for x in self._img_crate.get_axisnames()]
         if 'sky' in _a:
@@ -101,6 +111,10 @@ class ModelImage( object ):
         Convert pixel coordinates to physical coordinates
 
         Create (i,j) -> (x,y) mapping 
+        
+        This uses a lot of memory, but saves on speed.  And given
+        the mem-leaks in transform/crates -- this actually SAVEs 
+        on memory, by A LOT!        
         """
         ivals = [x+1.0 for x in range(self.xlen)]
         jvals = [y+1.0 for y in range(self.ylen)]
@@ -121,6 +135,10 @@ class ModelImage( object ):
         """
         Convert extent from physical to image array indexes, clipping at
         image boundaries.
+        
+        Get the bounds so we only have to check '.is_inside' over 
+        part of the image.
+        
         """
 
         limits = np.array( [[extent["x0"],extent["y0"]],
@@ -129,7 +147,7 @@ class ModelImage( object ):
         retval = retval-1 # Convert to 0 based array indexing
         retval = np.floor(retval)
         retval = retval.astype("i4") + np.array( [[0,0],[1,1]]) # +1 to upper limit
-        retval = np.clip(retval, 1, (self.xlen,self.ylen))
+        retval = np.clip(retval, 1, (self.xlen,self.ylen)) # clip to edge of image
 
         logical_limits = { 'xlo' : retval[0][0],
                            'ylo' : retval[0][1],
@@ -141,6 +159,7 @@ class ModelImage( object ):
 
     def write( self, ovals, outfile, normalization, clobber):
         """
+        Write output image.
         
         """
         self._img_crate.get_image().values = ovals * normalization
@@ -150,7 +169,20 @@ class ModelImage( object ):
 
 class Weights(object):
     """
+    Base class for different weighting schemes
     
+    Try to distribute fraction in the ellipse according to some
+    smoothing/expected shape. 
+    
+    The default, 'flat' just gives all pixels same value.
+
+    The `bias` is a constant offset.  If the weights evaluate to 0,
+    we don't want fractino to be 0, it still needs to be somehting
+    or we end up with enhanced banding at edges.
+    
+    The bias is added to different weights to help with that.  There
+    really isn't an optimal value here (that I could find); that's
+    why it's a parameter.
     """
     def __init__(self, bias=None):
         self.bias = bias
@@ -160,6 +192,10 @@ class Weights(object):
         self.decompose_region()
 
     def decompose_region( self ):        
+        """
+        I only need to decompose the region so I can figure out how 
+        far away from the edge any interior pixel is.
+        """
         reg = self.reg.shapes[0]
         self.x0 = reg.xpoints[0]
         self.y0 = reg.ypoints[0]
@@ -174,6 +210,10 @@ class Weights(object):
         raise NotImplementedError("Implement in derived class")
 
     def calc_distance( self, x,y):
+        """
+        This is assuming an elliptical shape.  For rotbox/others
+        we'd need a different calc.
+        """
         
         xh = x-self.x0
         yh = y-self.y0
@@ -192,6 +232,9 @@ class Weights(object):
 
         
 class FlatWeight( Weights ):
+    """
+    All pixels in region have equal fraction
+    """
     
     def __init__(self, bias=None):
         super( FlatWeight, self).__init__(bias)
@@ -201,6 +244,10 @@ class FlatWeight( Weights ):
 
 
 class LinearWeight(Weights):
+    """
+    Fractions are scaled linearly based on distance from edge.
+    """
+
     def __init__(self,bias=2):
         super( LinearWeight, self).__init__(bias)
         
@@ -213,6 +260,10 @@ class LinearWeight(Weights):
 
     
 class SquareWeight(Weights):
+    """
+    Fractions are scaled as squared distance from the edge.
+    """
+
     def __init__(self,bias=1):
         super( SquareWeight, self).__init__(bias)
         
@@ -223,6 +274,10 @@ class SquareWeight(Weights):
         return d
 
 class ISquareWeight(Weights):
+    """
+    Fractions are scaled as squared distance from the center, ie a hemisphere   
+    """
+
     def __init__(self,bias=1):
         super( ISquareWeight, self).__init__(bias)
         
@@ -238,6 +293,9 @@ class ISquareWeight(Weights):
 
 
 class SquareRootWeight(Weights):
+    """
+    Fractions are scaled as square root of distance from the edge.
+    """
     def __init__(self,bias=1):
         super( SquareRootWeight, self).__init__(bias)
         
@@ -250,6 +308,14 @@ class SquareRootWeight(Weights):
 
     
 class ExpWeight(Weights):
+    """
+    Fractions are scaled as exponential distance from the edge, ie Gaussian.
+    
+    The trick here is the Gaussian sigma.  Ideally, I think it would
+    be best to use the ellipse fraction to determine the sigma, but that's
+    messy in 2D.  This could definitely use some work.
+    
+    """
     def __init__(self,bias=0.5):
         super( ExpWeight, self).__init__(bias)
         
@@ -268,6 +334,9 @@ class ExpWeight(Weights):
 
 
 class EllipseModel(object):
+    """
+    The object to manage the array of ellipse parameters.
+    """
     
     def __init__(self, infile, weight_class):
         self.infile = infile
@@ -286,6 +355,8 @@ class EllipseModel(object):
         
         Convert to CXCRegion ellipses so we get all the wonderful
         math logic
+        
+        TBD: support rotboxes which are also output from dmellipse
         """
 
         def _scalar(x):
@@ -330,9 +401,11 @@ class EllipseModel(object):
         
 
     def _calc_covered_frac(self, reg ):
-        # Determine sum of fraction already included 
-        # in the intersection of the current ellipse and 
-        # the previous ellipses.          
+        """
+        Determine sum of fraction already included 
+        in the intersection of the current ellipse and 
+        the previous ellipses.          
+        """
         extent = reg.extent()
         erange = self.img.region_logical_limits( extent )
         current_frac = 0.0
@@ -345,10 +418,11 @@ class EllipseModel(object):
 
 
     def calc_area_and_weights( self, reg, curshape ):
-        # Now we count how many pixels in the current image are 
-        # in the annulus.  We could use the .area() method but 
-        # this gets us what we need.
-        #
+        """
+        Now we count how many pixels in the current image are 
+        in the annulus.  We could use the .area() method but 
+        this gets us what we need.
+        """
         self.weight_class.set_region( curshape )
 
         extent = reg.extent()
@@ -366,11 +440,11 @@ class EllipseModel(object):
 
 
     def _add_to_output(self, delta_fN, inside, weight ):
-        #
-        # Due to pixel size, there may not be any pixels so we check
-        # otherwise, we evenly distibuted the delta-flux into that many
-        # pixels.
-        #
+        """
+        Due to pixel size, there may not be any pixels so we check
+        otherwise, we evenly distibuted the delta-flux into that many
+        pixels.
+        """
         if len(inside)>0:
             val = delta_fN / sum(weight)
 
@@ -382,14 +456,18 @@ class EllipseModel(object):
 
     def process_region( self, N):
         """
+        Main routine.
         
+        The idea is to get fraction of data that is in the current region
+        and not already included in all the previous regions.  [Regions 
+        were sorted when read in.]
         """
         fN = self.ellipse_list[N][0] # fraction in 1st region
         eN = self.ellipse_list[N][1] # the region itself
 
         shapes_already_counted = self.union_previous_shapes(N)
 
-        # Intersect current shape with existing ones.
+        # Intersect current shape with existing ones, "*" is "AND" in region-speak
         region_already_counted = eN * shapes_already_counted
         current_frac = self._calc_covered_frac( region_already_counted)
 
@@ -403,6 +481,7 @@ class EllipseModel(object):
         if 0 == len(shapes_already_counted.shapes):
             region_not_already_counted = eN
         else:
+            # "-" is "AND NOT" in region speak
             region_not_already_counted = eN - shapes_already_counted
 
         inside, weight = self.calc_area_and_weights(region_not_already_counted, eN)
@@ -412,6 +491,7 @@ class EllipseModel(object):
 
     def doit(self):
         """
+        Loop over all the regions
         """        
         for N in range(len(self.ellipse_list)):
             self.process_region(N)
@@ -419,9 +499,10 @@ class EllipseModel(object):
 
     def write( self, pars ):
         """
-        TODO clobber check
+        Write output, add history
         """
         from ciao_contrib.runtool import add_tool_history
+
         self.img.write( self.img.ovals, pars["outfile"], 
             pars["normalization"], pars["clobber"])
         
@@ -431,6 +512,13 @@ class EllipseModel(object):
         
 
 def map_weights( weight_name, bias ):    
+    """
+    Helper to map the weight names to actual objects    
+
+    if the bias is not set, then use default appropriate for 
+    each weight.
+    """
+
     weight_class = { 'flat' :     (FlatWeight,1.0),
                      'linear' :   (LinearWeight,2.0),
                      'square' :   (SquareWeight,1.0),
@@ -452,8 +540,11 @@ def map_weights( weight_name, bias ):
     return my_weight(bias)
 
 
+
 def process_parameters( ):
     """
+    Read parameters and do some manipulation handling.
+
     """
     from ciao_contrib.param_soaker import get_params
     from ciao_contrib._tools.fileio import outfile_clobber_checks
@@ -475,6 +566,9 @@ def process_parameters( ):
 
 @lw.handle_ciao_errors( toolname, __revision__)
 def main():
+    """
+    Get to work.    
+    """
 
     # Load parameters
     pars=process_parameters() 
