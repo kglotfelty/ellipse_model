@@ -165,7 +165,7 @@ class ModelImage( object ):
         self._img_crate.get_image().values = ovals * normalization
         self._img_crate.write(outfile, clobber=clobber)
 
-
+# -----------------
 
 class Weights(object):
     """
@@ -273,6 +273,7 @@ class SquareWeight(Weights):
         d = (d*d)+self.bias
         return d
 
+
 class ISquareWeight(Weights):
     """
     Fractions are scaled as squared distance from the center, ie a hemisphere   
@@ -288,8 +289,6 @@ class ISquareWeight(Weights):
         d=d+self.bias
         
         return d
-
-
 
 
 class SquareRootWeight(Weights):
@@ -331,7 +330,7 @@ class ExpWeight(Weights):
         return retval
 
 
-
+# ------------------------------------------------------------------
 
 class EllipseModel(object):
     """
@@ -509,7 +508,8 @@ class EllipseModel(object):
         add_tool_history( pars["outfile"], toolname, pars, 
                   toolversion=__revision__)
 
-        
+
+# --------------------------------------------------------------        
 
 def map_weights( weight_name, bias ):    
     """
@@ -540,7 +540,6 @@ def map_weights( weight_name, bias ):
     return my_weight(bias)
 
 
-
 def process_parameters( ):
     """
     Read parameters and do some manipulation handling.
@@ -560,9 +559,6 @@ def process_parameters( ):
     
     return(pars)
     
-    
-
-
 
 @lw.handle_ciao_errors( toolname, __revision__)
 def main():
@@ -578,7 +574,6 @@ def main():
     my_ellipse.load_image( pars["image_file"] )
     my_ellipse.doit()
     my_ellipse.write( pars ) # outfile, normalization, clobber )
-
 
 
 if __name__ == "__main__":
