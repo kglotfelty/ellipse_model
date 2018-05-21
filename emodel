@@ -394,6 +394,7 @@ class EllipseModel(object):
         """
         shapes_already_counted = CXCRegion()
         for e in self.ellipse_list[0:up_to_N]:
+            # "+" union's the shapes
             shapes_already_counted = shapes_already_counted+e[1]
         
         return(shapes_already_counted)
