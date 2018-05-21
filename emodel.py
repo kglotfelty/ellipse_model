@@ -1,3 +1,42 @@
+#! /usr/bin/env python
+
+#
+# Copyright (C) 2018 Smithsonian Astrophysical Observatory
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+from __future__ import print_function
+
+toolname = "emodel"
+__revision__ = "21 May 2018"
+
+import os
+
+import ciao_contrib.logger_wrapper as lw
+lw.initialize_logger(toolname)
+lgr = lw.get_logger(toolname)
+verb0 = lgr.verbose0
+verb1 = lgr.verbose1
+verb2 = lgr.verbose2
+verb3 = lgr.verbose3
+verb4 = lgr.verbose4
+verb5 = lgr.verbose5
+
+
+import sys
 
 
 from region import *
@@ -9,7 +48,9 @@ from pycrates import read_file
 
 
 class ModelImage( object ):
+    """
     
+    """
     def __init__( self, infile ):
         self.infile = infile
         self.ovals = None
@@ -108,7 +149,9 @@ class ModelImage( object ):
 
 
 class Weights(object):
+    """
     
+    """
     def __init__(self, bias=None):
         self.bias = bias
     
@@ -374,53 +417,68 @@ class EllipseModel(object):
             self.process_region(N)
         
 
-    def write( self, outfile, normalization, clobber):
+    def write( self, pars ):
         """
         TODO clobber check
         """
-        self.img.write( self.img.ovals, outfile, normalization, clobber)
+        self.img.write( self.img.ovals, pars["outfile"], 
+            pars["normalization"], pars["clobber"])
         
 
-def map_weights( weight_name ):    
-    weight_class = { 'flat' : FlatWeight,
-                     'linear' : LinearWeight,
-                     'square' : SquareWeight,
-                     'gaussian' : ExpWeight,
-                     'sqrt' : SquareRootWeight,
-                     'hemi' : ISquareWeight
+def map_weights( weight_name, bias ):    
+    weight_class = { 'flat' :     (FlatWeight,1.0),
+                     'linear' :   (LinearWeight,2.0),
+                     'square' :   (SquareWeight,1.0),
+                     'gaussian' : (ExpWeight,0.5),
+                     'sqrt' :     (SquareRootWeight,1.0),
+                     'hemi' :     (ISquareWeight,1.0)
                      }
     wn = weight_name.lower()
     if wn not in weight_class:
         raise ValueError("Unknown weight name")
-    return weight_class[wn]
+
+    my_weight = weight_class[wn][0]
+
+    if bias in [None, "INDEF"]:
+        bias = weight_class[wn][1]
+    else:
+        bias = float(bias)
+
+    return my_weight(bias)
 
 
+def process_parameters( pars ):
+    """
+    """
+    
+    
+
+
+
+@lw.handle_ciao_errors( toolname, __revision__)
 def main():
 
-    infile = "ellipses.fits"
-    ###infile="aaa"
-    image_file = "img.fits"
-    outfile = "model.fits"
-    normalization = 1.0
-    weight = 'square'
-    bias = 0.5
-    clobber = True
+    # Load parameters
+    from ciao_contrib.param_soaker import get_params
+    pars = get_params(toolname, "rw", sys.argv, 
+        verbose={"set":lw.set_verbosity, "cmd":verb1} )
     
-    my_weight = map_weights(weight)
-    my_ellipse = EllipseModel( infile, my_weight(bias) )
-    my_ellipse.load_image( image_file )
+    my_weight = map_weights( pars["weight"], pars["bias"])
+    my_ellipse = EllipseModel( pars["infile"], my_weight)
+    my_ellipse.load_image( pars["image_file"] )
     my_ellipse.doit()
-    my_ellipse.write( outfile, normalization, clobber )
-
-
-main()
+    my_ellipse.write( pars ) # outfile, normalization, clobber )
 
 
 
-    
-
-
-
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as E:
+        print ("\n# "+toolname+" ("+__revision__+"): ERROR "+str(E)+"\n", file=sys.stderr)
+        sys.exit(1)
+    sys.exit(0)
+  
 
     
 
