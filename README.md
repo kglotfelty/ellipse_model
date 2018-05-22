@@ -60,3 +60,36 @@ ds9 model.fits -scale log \
 ![Model](model.png)
 
 
+### Weights
+
+**Experimental**
+
+The `weight` option is still experimental.  The `flat` and `linear` 
+are well behaved but the other options may produces some artifacts, 
+especially at the boundary between ellipses.
+
+```bash
+emodel ellipses.fits img.fits model_flat.fits weight=flat clob+ 
+emodel ellipses.fits img.fits model_linear.fits weight=linear clob+ 
+emodel ellipses.fits img.fits model_gaussian.fits weight=gaussian clob+ 
+emodel ellipses.fits img.fits model_square.fits weight=square clob+ 
+emodel ellipses.fits img.fits model_sqrt.fits weight=sqrt clob+ 
+emodel ellipses.fits img.fits model_hemi.fits weight=hemi clob+ 
+```
+
+The effect of the weighting is most obvious in the center of the
+image
+
+
+```
+ds9 model_flat.fits -scale log -zoom 4 -tile -view colorbar no\
+  -cmap load ~/ds9_hacks/LUT/Neota/neota_sunset-in-atlantis.lut \
+  model_linear.fits model_gaussian.fits model_square.fits model_sqrt.fits model_hemi.fits \
+  -pan to 4270 3960 physical -match frames physical \
+  -saveimage png weights.png -quit
+```
+
+![weights](weights.png)
+
+
+
