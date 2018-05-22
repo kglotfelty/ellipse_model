@@ -94,5 +94,5 @@ ds9 model_flat.fits -scale log -zoom 4 -tile -view colorbar no\
 
 ## To Do
 
-- [] Implement image subspace and NULL/NaN value checking to remove/respect
+-[] Implement image subspace and NULL/NaN value checking to remove/respect
 the white space around the image.
