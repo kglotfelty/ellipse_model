@@ -44,9 +44,15 @@ ellipse profile
 emodel ellipses.fits img.fits model.fits weight=flat clob+ 
 ```
 
+`emodel` takes the information about the ellipses and the fraction 
+of the total flux in each ellipse to reconstruct a 2D model.  The `weight`
+parameter controls how the flux is distributed within the ellipse.  The
+default `flat` equally distributes the flux into each pixel in the ellipse.
+
+
 
 ```bash
-ds9 model.fits -region ellipses.fits -scale log \
+ds9 model.fits -scale log \
   -cmap load ~/ds9_hacks/LUT/Neota/neota_sunset-in-atlantis.lut \
   -view colorbar no  -saveimage png model.png -quit
 ```
