@@ -43,7 +43,7 @@ from region import *
 import numpy as np
 from pycrates import read_file
 
-
+from masked_image_crate import *
 
 
 
@@ -72,16 +72,14 @@ class ModelImage( object ):
         """Load image
         
         We don't care about the image pixel values.
-        
-        TBD OK -- we do.  I will need them at some point to check for NaN/NULLs.
-        
-        The same input crate is used for the output.  
-        
-        TBD: Units/Content/Creator/etc.
+                
+        The same input crate is used for the output.          
         
         """
 
-        self._img_crate = read_file(self.infile,"r")
+        self._img_crate = MaskedIMAGECrate(self.infile,"r")
+
+
         ### TBD: remove pixels, replace with self.ovals?
         pixels = self._img_crate.get_image().values
         self._img_crate.get_image().values = np.zeros_like(pixels)*1.0
@@ -157,9 +155,18 @@ class ModelImage( object ):
         return logical_limits
 
 
+    def valid( self, i, j ):
+        """
+        Determine if pixel is valid (ie not NULL|NaN|Inf or outside DSS)        
+        """
+        return self._img_crate.valid(i,j)
+
+
     def write( self, ovals, outfile, normalization, clobber):
         """
         Write output image.
+
+        TBD: Units/Content/Creator/etc.
         
         """
         self._img_crate.get_image().values = ovals * normalization
@@ -411,6 +418,8 @@ class EllipseModel(object):
         current_frac = 0.0
         for _y in range( erange["ylo"], erange["yhi"]+1):
             for _x in range(erange["xlo"], erange["xhi"]+1):
+                if not self.img.valid( _x-1,_y-1):
+                    continue
                 pos = self.img.coords[(_x,_y)]
                 if reg.is_inside( pos[0],pos[1]):
                     current_frac = current_frac + self.img.ovals[_y-1,_x-1]
@@ -431,6 +440,8 @@ class EllipseModel(object):
         weight = []
         for _y in range( erange["ylo"], erange["yhi"]+1):
             for _x in range(erange["xlo"], erange["xhi"]+1):
+                if not self.img.valid( _x-1, _y-1):
+                    continue
                 pos = self.img.coords[(_x,_y)]
                 if reg.is_inside( pos[0],pos[1]):
                     inside.append (  (_x-1,_y-1), )
