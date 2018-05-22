@@ -4,5 +4,6 @@ outfile,f,a,"",,,"Output image file"
 normalization,f,h,1.0,0,,"Value multiplied to final output image"
 weight,s,h,"flat","flat|linear|gaussian|square|sqrt|hemi",,"Weighting method within each ellipse"
 bias,r,h,INDEF,0,,"Bias offset used for weighting"
+verbose,i,h,1,0,5,"Tool chatter"
 clobber,b,h,no,,,"Delete output file if it already exists?"
 mode,s,h,ql,,, 
