@@ -43,7 +43,10 @@ from region import *
 import numpy as np
 from pycrates import read_file
 
-from masked_image_crate import *
+try:
+    from masked_image_crate import *
+except:
+    from crates_contrib.masked_image_crate import *
 
 
 
