@@ -21,11 +21,15 @@ and uses it to create a model image.
 ### Run `dmellipse`
 
 We start by running `dmellipse` to create an ellipse profile of 
-the image.  `dmellipse` takes the input image `img.fits` and a 
+the image.  `dmellipse` takes the input image `img2.fits` and a 
 [stack](http://cxc.cfa.harvard.edu/ciao/ahelp/stack.html) of 
 integrated fractions.  
 
+In this example I've filtered the input image with a region so that
+the edge of the image is stored in the file's data-subspace.
+
 ```bash
+dmimghull img.fits hull.fits clob+
 dmcopy "img.fits[sky=region(hull.fits)][opt full]" img2.fits clob+
 dmellipse img2.fits ellipses.fits fraction="lgrid(0.05:1.0:0.025)" step=20 mode=h clob+
 ```
