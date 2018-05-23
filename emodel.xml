@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cxchelptopics SYSTEM "CXCHelp.dtd">
+<cxchelptopics>
+<ENTRY 
+        context="tools" 
+        key="emodel" 
+        refkeywords="ellipse dmellipse model 2D reconstruct PSF bmodel" 
+        seealsogroups="dmimgtools"
+    >
+    <SYNOPSIS>
+       Reconstruct 2D model from elliptical profile
+    </SYNOPSIS>
+    <DESC>
+        <PARA>
+        </PARA>
+    </DESC>
+    <QEXAMPLELIST>
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>dmellipse img.fits 50perc.reg 0.5</LINE>
+            <LINE>emodel 50pre.reg img.fits model.fits</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            This example uses dmellipse to create a single elliptical
+            region which encloses 50% of the flux in the input image.
+            The emodel tool takes the output from dmellipse and
+            uses it to reconstruct a 2D model.  In this example the
+            model will be a single, uniform 2D ellipse. All the pixel
+            values in the ellipse will be the same; the sum of the 
+            pixel values will equal 0.5.            
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>dmellipse img.fits profile.reg "0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0"</LINE>
+            <LINE>emodel  profile.reg img.fits profile_model.fits</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            This is similar to the previous example except now 
+            dmellipse was used to create 10 ellipses which enclose 
+            varying fractions of the total flux in the input image.
+            The emodel tool will create a 2D model using this as input.
+            The output will have 10 "tiers", each level will have a 
+            constant value. The fraction of the flux in the elliptical annuli is
+            scaled to match the fraction of flux between the 
+            different levels.
+            </PARA>
+            <PARA>
+            The sum of the pixel values in the output profile_model.fits 
+            image will be approximately equal to 1.0.  Why approximately?
+            dmellipse will converge to within a specified tolerance of the
+            requested fraction.  The actual fraction enclosed is 
+            used by emodel during the reconstruction.
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>dmstat img.fits cen-</LINE>
+            <LINE>emodel  profile.reg img.fits profile_model.fits norm=")dmstat.out_sum"</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            This is the same as the previous example except now the 
+            normalization parameter has been added.  This example 
+            uses the output from dmstat via a parameter redirection 
+            to scale the model image to match the total flux in the input image.
+            </PARA>
+          </DESC>
+        </QEXAMPLE>
+
+        <QEXAMPLE>
+          <SYNTAX>
+            <LINE>emodel  profile.reg img.fits profile_model.fits weight=linear bias=INDEF</LINE>
+          </SYNTAX>
+          <DESC>
+            <PARA>
+            This is the same as the previous example except now the
+            weight and bias parameters have been specified.
+            The default weight=flat models the flux as constant values 
+            in each level of ellipse reconstruction.  With weight=linear
+            the pixels nearest the center of the ellipse are weighted
+            more than at the edge of the ellipse; the weighting 
+            is linear with radial distance from the center plus a fixed
+            bias offset.
+            </PARA>
+            <PARA>
+            Each ellipse is processed individually so there are still
+            discontinuities at the boundary between fractions.  This 
+            is true for all the various weighting options.
+            </PARA>
+          </DESC>          
+        </QEXAMPLE>
+    
+    
+    </QEXAMPLELIST>
+    <PARAMLIST>
+        <PARAM name="infile" type="file" filetype="input" reqd="yes">
+            <SYNOPSIS>
+            Input file with ellipse parameters (ie dmellipse output)
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+                    The input file is a table with standard 
+                    region columns (shape, x, y, r, rotang ) 
+                    along with a 'fraction' column.  Only
+                    files with shape='ellipse' (case insensitive) 
+                    are supported.  The fraction values should be
+                    between 0.0 and 1.0.  The x, y, and r values 
+                    expected to be in physical pixels, and rotang
+                    is expected to be the angle from the +X axis to the
+                    first radii (typically the major axis).
+                </PARA>
+                <PARA>
+                    The dmellipse tool creates this type of file.
+                </PARA>
+            </DESC>
+
+
+        </PARAM>
+        <PARAM name="image_file" type="file" filetype="input" reqd="yes">
+            <SYNOPSIS>
+            The input 2D image file.  
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+                The output model image is created to match the
+                input image_file.  The image_file must contain
+                either "sky" or "pos" axes which are used to access
+                the physical WCS need to make array indexes (0 to N-1)
+                to physical coordinates.
+                </PARA>
+                <PARA>
+                If the image_file contains any NaN or integer NULL value
+                pixels, they are omitted during the reconstruction.
+                That is any NaN or NULL values in the input will be
+                equal to 0 in the output image.  Similarly, if the
+                input image has been spatially filtered and then
+                pixels outside the region subspace (if any) will be
+                omitted during the reconstruction.
+                </PARA>
+                <PARA>
+                The same image used to generate the ellipses is not
+                required to be the same image used to generate the model.                
+                </PARA>
+            </DESC>
+        </PARAM>
+        <PARAM name="outfile" type="file" filetype="output" reqd="yes">
+            <SYNOPSIS>
+            The output 2D model image file.
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+                The output image is the same size, shape, WCS as
+                the input image_file.  The pixel values are the fraction
+                of the flux contained in each input ellipse 
+                distributed over the pixels in the ellipse.
+                </PARA>
+            </DESC>
+        </PARAM>
+
+        <PARAM name="normalization" type="real" def="1">
+            <SYNOPSIS>
+            Overall normalization applied to output image
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+                The pixel values in the output represent the fraction
+                of the total flux in the model as described by the
+                input elliptical profile.  A normalization 
+                can be applied to convert the pixel values from 
+                fractional values to absolute values.
+                </PARA>            
+            </DESC>
+        </PARAM>
+        <PARAM name="weight" type="string" def="flat">
+            <SYNOPSIS>
+            How to distribute flux within a single ellipse
+            </SYNOPSIS>
+            <DESC>
+                <PARA title="**Experimental**"> 
+                    The default weighting, "flat", creates a model
+                    with constant values within each ellipse. 
+                    The typical output will then have sharp edges
+                    (steep gradients) at the boundary between ellipses.
+                    The weighting algorithms attempt to smooth out the
+                    model by assuming some shape/structure.
+                    The intent is to reduce the contrast between 
+                    individual ellipse regions.
+                </PARA>
+                <PARA>
+                    The effect on the 2D model varies significantly.
+                </PARA>
+
+                <LIST>
+                    <ITEM>
+                        flat : (default) fraction is equally divided into 
+                        all pixels in the ellipse.
+                    </ITEM>
+                    <ITEM>
+                        linear : the normalized distance from the edge of the
+                        ellipse to the center is computed.  The linear distance 
+                        plus the bias is used to weight the contribution from each pixel
+                        in the annulus.
+                    </ITEM>
+                    <ITEM>
+                        gaussian : similar to 'linear', except the 
+                        natural exponent of the negative squared distance
+                        is used to weight the contribution from each pixel.
+                    </ITEM>
+                    <ITEM>
+                        square : similar to 'linear' except the 
+                        squared distance is used to weight the contribution
+                        from each pixel.
+                    </ITEM>
+                    <ITEM>
+                        sqrt : similar to 'linear' except the 
+                        square-root of the distance is used to weight
+                        the contribution from each pixel.
+                    </ITEM>
+                    <ITEM>
+                        hemi : (ie hemisphere, half-circle).  1-d^2
+                    </ITEM>
+
+                
+                </LIST>
+
+
+                <PARA>
+                </PARA>
+            
+
+
+            </DESC>
+        </PARAM>
+        <PARAM name="bias" type="real" def="INDEF">
+            <SYNOPSIS>
+            A constant offset applied to the weights
+            </SYNOPSIS>
+            <DESC>
+                <PARA>
+                The bias is used to supply a constant offset to
+                the weights.  For example, using weight=linear
+                the weight is the normalized distance from the
+                edge of the ellipse to the center.  However at the
+                edge where the distance is '0' we still want to 
+                include those pixel.  The bias value is the constant
+                used to offset the weights so that all pixels are 
+                included.                
+                </PARA>
+                <PARA>
+                The different weighting schemes seem to do better with
+                different default bias values applied.  The default
+                "INDEF" instructs the tool to use the default
+                appropriate for the weighting scheme.
+                </PARA>
+
+            </DESC>
+        </PARAM>
+        <PARAM name="verbose" type="integer" def="1" min="0" max="5">
+            <SYNOPSIS>
+            Amount of chatter from the tool.
+            </SYNOPSIS>
+        </PARAM>
+        <PARAM name="clobber" type="boolean" def="no">
+            <SYNOPSIS>
+            Delete outfile if it already exists?
+            </SYNOPSIS>
+        </PARAM>
+    </PARAMLIST>
+
+
+    <BUGS>
+        <PARA>
+            See the
+            <HREF link="http://cxc.harvard.edu/ciao/bugs/index.html">CIAO
+            website</HREF> for an up-to-date listing of known bugs.
+        </PARA>
+    </BUGS>
+    <LASTMODIFIED>May 2018</LASTMODIFIED>
+</ENTRY>
+</cxchelptopics>
