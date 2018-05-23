@@ -107,3 +107,35 @@ ds9 model_flat.fits -scale log -scale limits 0 175 -zoom 4 -tile -view colorbar 
 ![weights](weights.png)
 
 
+## Installation
+
+This script requires [ciao-4.10](http://cxc.cfa.harvard.edu/ciao/download/index.html)
+or later.   It will not work with earlier versions of CIAO.
+
+Users must have sourced the CIAO setup script before installing this
+script.
+
+```bash
+$ source /soft/ciao/bin/ciao.bash
+CIAO configuration is complete... 
+CIAO 4.10 Thursday, April 12, 2018
+  bindir      : /soft/ciao-4.10/bin
+  CALDB       : 4.7.8
+```
+
+replace `/soft/ciao` with your location where you installed CIAO, then
+
+```bash
+$ git clone https://github.com/kglotfelty/ellipse_model 
+Cloning into 'ellipse_model'...
+remote: Counting objects: 110, done.
+remote: Compressing objects: 100% (76/76), done.
+remote: Total 110 (delta 53), reused 86 (delta 29), pack-reused 0
+Receiving objects: 100% (110/110), 960.65 KiB | 0 bytes/s, done.
+Resolving deltas: 100% (53/53), done.
+Checking connectivity... done.
+
+$ cd ellipse_model/
+$ python setup.py install
+```
+
