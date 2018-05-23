@@ -2,3 +2,4 @@ test_data
 *.fits
 build/
 __pycache__
+.delme
