@@ -12,7 +12,59 @@
     </SYNOPSIS>
     <DESC>
         <PARA>
+            emodel is used to reconstruct a 2D model based on an
+            elliptical enclosed counts fraction (E-ECF) profile such
+            as is computed with the dmellipse tool.
         </PARA>
+        <PARA>
+            The tool takes in the E-ECF table and an input image file.
+            The output model image is made to match the input image
+            file (size, WCS, etc.).  If the input image file has been
+            spatially filtered or contains Null|NaN values, the
+            tool will omit those pixels (ie leave equal to zero) in
+            the reconstruction.
+        </PARA>
+
+        <PARA title="How does it work?">
+            The tool reads in the ellipse shape parameters and
+            the fraction from the input table, and sorts them 
+            from lowest to highest fraction.        
+        </PARA>
+        <PARA>
+            We compute the number of pixels in the output image 
+            which are inside the 1st ellipse.  The fraction at that
+            ellipse is, by default, then equally distributed into
+            all those pixels.
+        </PARA>
+        <PARA>
+            The 2nd ellipse is then processed.  We compute
+            intersection of the 1st and 2nd ellipses and determine the 
+            fraction of the flux already accounted for in that intersection.
+            Typically, the intersection of these two is simply the 1st
+            (smaller) ellipse.  We then compute the difference in the fraction
+            for the current ellipse, and the amount already accounted for 
+            in the prior ellipse.  We then compute the region which
+            is the current ellipse excluding the previous ellipse.  
+            Typically this will be an elliptical annulus.  We determine 
+            the number of pixels inside this elliptical annulus 
+            and equally distribute the delta-flux between the two 
+            into that region.
+        </PARA>
+        <PARA>
+            This process is repeated where the N-th region is 
+            intersected with the union of the previous N-1 regions
+            and the delta-fraction not already accounted for is then
+            distributed into the elliptical annulus.
+        </PARA>
+        <PARA>
+            Optionally, the fraction of flux in each
+            ellipse/elliptical annulus may be weighted by the 
+            distance from the edge of the ellipse.  Additionally, 
+            the total image can be scaled by a normalization
+            factor.
+        </PARA>
+        
+
     </DESC>
     <QEXAMPLELIST>
         <QEXAMPLE>
@@ -228,12 +280,13 @@
 
                 
                 </LIST>
-
-
                 <PARA>
+                The weight='flat' and the weight='linear' with bias=INDEF (2),
+                both work reasonably well on various test images.
+                The quality of the 2D model reconstructed using the other
+                methods varies based on the data, and the bias value
+                selected.
                 </PARA>
-            
-
 
             </DESC>
         </PARAM>
