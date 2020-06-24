@@ -3,3 +3,4 @@ test_data
 build/
 __pycache__
 .delme
+*.egg-info/

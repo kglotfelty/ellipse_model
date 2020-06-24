@@ -10,7 +10,28 @@ ver = sys.version_info
 os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1]) 
 
 
-from distutils.core import setup
+from setuptools import setup
+from setuptools.command.install import install
+
+
+class InstallAhelpWrapper(install):
+    'A simple wrapper to run ahelp -r after install to update ahelp index'
+
+    @staticmethod
+    def update_ahelp_database():
+        print("Update ahelp database ...")
+        from subprocess import check_output
+        sout = check_output(["ahelp","-r"])
+        for line in sout.decode().split("\n"):
+            for summary in ["Processed", "Succeeded", "Failed", "Purged"]:
+                if line.startswith(summary):
+                    print("    "+line)
+
+    
+    def run(self):
+        install.run(self)
+        self.update_ahelp_database()
+
 
 setup( name='emodel',
        version='0.1.0',
@@ -22,14 +43,8 @@ setup( name='emodel',
        scripts=["emodel"],
        data_files=[('param',['emodel.par']),
                     ('share/doc/xml',['emodel.xml'])
-                    ]
+                    ],
+        cmdclass={'install': InstallAhelpWrapper},
                     
     )
 
-print("Update ahelp database ...")
-from subprocess import check_output
-sout = check_output("ahelp -r".split())
-for line in sout.decode().split("\n"):
-    for summary in ["Processed", "Succeeded", "Failed", "Purged"]:
-        if line.startswith(summary):
-            print("    "+line)
