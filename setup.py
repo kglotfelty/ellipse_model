@@ -25,3 +25,11 @@ setup( name='emodel',
                     ]
                     
     )
+
+print("Update ahelp database ...")
+from subprocess import check_output
+sout = check_output("ahelp -r".split())
+for line in sout.decode().split("\n"):
+    for summary in ["Processed", "Succeeded", "Failed", "Purged"]:
+        if line.startswith(summary):
+            print("    "+line)
