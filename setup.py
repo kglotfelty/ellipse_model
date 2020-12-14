@@ -5,10 +5,6 @@ import sys
 
 assert "ASCDS_INSTALL" in os.environ, "Please setup for CIAO before installing"
 
-# Set PYVER env variable so that it'll get replaced in setup.cfg
-ver = sys.version_info
-os.environ["PYVER"] = "python{}.{}".format(ver[0],ver[1]) 
-
 
 from setuptools import setup
 from setuptools.command.install import install
@@ -34,10 +30,10 @@ class InstallAhelpWrapper(install):
 
 
 setup( name='emodel',
-       version='0.1.0',
+       version='4.13.0',
        description='Elliptical model builder',
-       author='Anonymous',
-       author_email='WhoDat@cfa.harvard.edu',
+       author='Kenny Glotfelty',
+       author_email='glotfeltyk@si.edu',
        url='https://github.com/kglotfelty/ellipse_model/',
        py_modules=["masked_image_crate"],
        scripts=["emodel"],
